@@ -27,6 +27,8 @@ message = "Press NEW ROUND to start"
 
 can_change_bet = True
 show_newround_button = True   # <<< NEW FLAG
+round_active = False   # True when a round is ongoing
+
 
 # GAME STATES
 GAME = 1
@@ -95,25 +97,30 @@ def calc_best_total(hand):
 
 # ------------------- ROUND MANAGEMENT -------------------
 def init_round():
-    global deck, player, dealer, done, rounds, can_change_bet, message, show_newround_button
-
+    global deck, player, dealer, done, rounds, can_change_bet, message, show_newround_button, round_active
     deck = new_deck()
     player = [deck.pop(), deck.pop()]
     dealer = [deck.pop(), deck.pop()]
     done = False
     rounds += 1
     can_change_bet = False
-    show_newround_button = False    # <<< HIDE IT ON ROUND START
+    show_newround_button = False
     message = f"Bet locked: ${bet}"
+    round_active = True   # Round is now active
+
+
 
 def result_message():
-    global balance, wins, can_change_bet, show_newround_button
+    global balance, wins, can_change_bet, show_newround_button, round_active
 
     p = calc_best_total(player)
     d = calc_best_total(dealer)
 
     # round ends -> show NEW ROUND button again
     show_newround_button = True
+    round_active = False   # Round ends
+
+
 
     if p > 21:
         balance -= bet
@@ -198,8 +205,10 @@ def draw_game():
 
     draw_centered(message, 670, FONT)
 
-    hit_btn.draw()
-    stand_btn.draw()
+    if round_active:
+        hit_btn.draw()
+        stand_btn.draw()
+
 
     # <<< NEW ROUND BUTTON ONLY IF ROUND ENDED
     if show_newround_button:
@@ -280,18 +289,23 @@ while running:
                     init_round()
 
             # HIT
-            if hit_btn.clicked((mx,my)) and not done and not can_change_bet:
+            if round_active and hit_btn.clicked((mx,my)) and not done:
                 player.append(deck.pop())
                 if calc_best_total(player) > 21:
                     done = True
                     message = result_message()
 
             # STAND
-            if stand_btn.clicked((mx,my)) and not done and not can_change_bet:
+            if round_active and stand_btn.clicked((mx,my)) and not done:
+
+                # Dealer draws until 17+
                 while calc_best_total(dealer) < 17:
                     dealer.append(deck.pop())
+
+                # Now evaluate the final result
                 done = True
                 message = result_message()
+
 
     if done and balance <= 0:
         state = LOSE_SCREEN
